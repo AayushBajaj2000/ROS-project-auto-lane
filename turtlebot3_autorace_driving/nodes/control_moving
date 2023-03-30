@@ -293,7 +293,6 @@ class ControlMoving():
         twist.angular.z = 0
         self.pub_cmd_vel.publish(twist)
 
-    
     def cbOdom(self, odom_msg):
         quaternion = (odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w)
         self.current_theta = self.euler_from_quaternion(quaternion)

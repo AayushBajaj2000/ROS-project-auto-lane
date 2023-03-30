@@ -261,6 +261,7 @@ class DetectTrafficLight():
         Lightness_h = self.lightness_red_h
 
         # define range of red color in HSV
+        
         lower_red = np.array([Hue_l, Saturation_l, Lightness_l])
         upper_red = np.array([Hue_h, Saturation_h, Lightness_h])
 
@@ -365,48 +366,28 @@ class DetectTrafficLight():
 
         # Filter by Area.
         params.filterByArea = True
-        params.minArea = 50
+        params.minArea = 0
         params.maxArea = 600
 
         # Filter by Circularity
-        params.filterByCircularity = True
-        params.minCircularity = 0.4
+        params.filterByCircularity = False
+        params.minCircularity = 0
 
         # Filter by Convexity
-        params.filterByConvexity = True
-        params.minConvexity = 0.6
+        params.filterByConvexity = False
+        params.minConvexity = 0
 
         det=cv2.SimpleBlobDetector_create(params)
         keypts=det.detect(mask)
         frame=cv2.drawKeypoints(self.cv_image,keypts,np.array([]),(0,255,255),cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-        col1 = 180
-        col2 = 270
-        col3 = 305
-
-        low1 = 50
-        low2 = 170
-        low3 = 170
-        
         # if detected more than 1 light
         for i in range(len(keypts)):
             self.point_col = int(keypts[i].pt[0])
             self.point_low = int(keypts[i].pt[1])
-            if self.point_col > col1 and self.point_col < col2 and self.point_low > low1 and self.point_low < low2:
-                if find_color == 'green':
-                    status = 1
-                elif find_color == 'yellow':
-                    status = 2
-                elif find_color == 'red':
-                    status = 3
-            elif self.point_col > col2 and self.point_col < col3 and self.point_low > low1 and self.point_low < low3:
-                if find_color == 'red':
-                    status = 4
-                elif find_color == 'green':
-                    status = 5
-            else:
-                status = 6
+            rospy.loginfo("point_col: %d, point_low: %d", self.point_col, self.point_low)
 
+        rospy.loginfo("status: %d", status)
         return status
 
     def cbTrafficLightFinished(self, traffic_light_finished_msg):

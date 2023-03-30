@@ -1,0 +1,9 @@
+detect:
+    cone:
+        orange:
+            hue_orange_h: 43
+            hue_orange_l: 0
+            lightness_orange_h: 255
+            lightness_orange_l: 221
+            saturation_orange_h: 255
+            saturation_orange_l: 129

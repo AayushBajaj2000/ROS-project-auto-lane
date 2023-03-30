@@ -27,6 +27,7 @@ generate_dynamic_reconfigure_options(
   cfg/DetectLaneParams.cfg
   cfg/DetectLevelParams.cfg
   cfg/DetectTrafficLightParams.cfg
+  cfg/DetectConeParams.cfg
 )
 
 ################################################################################
@@ -49,6 +50,7 @@ catkin_install_python(PROGRAMS
   nodes/detect_intersection
   nodes/detect_intersection_sign
   nodes/detect_lane
+  nodes/detect_lane_left
   nodes/detect_level_crossing
   nodes/detect_level_crossing_sign
   nodes/detect_parking
@@ -56,6 +58,8 @@ catkin_install_python(PROGRAMS
   nodes/detect_traffic_light
   nodes/detect_tunnel
   nodes/detect_tunnel_sign
+  nodes/detect_cone
+  nodes/cone_decider
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

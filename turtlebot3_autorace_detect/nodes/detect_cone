@@ -1,0 +1,211 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import rospy
+import numpy as np
+import cv2
+from enum import Enum
+from std_msgs.msg import UInt8, Float64
+from sensor_msgs.msg import Image, CompressedImage
+from cv_bridge import CvBridge, CvBridgeError
+from dynamic_reconfigure.server import Server
+from turtlebot3_autorace_detect.cfg import DetectConeParamsConfig
+
+class DetectCone():
+    def __init__(self):
+        self.hue_orange_l = rospy.get_param("~detect/cone/orange/hue_orange_l", 0)
+        self.hue_orange_h = rospy.get_param("~detect/cone/orange/hue_orange_h", 43)
+        self.saturation_orange_l = rospy.get_param("~detect/cone/orange/saturation_orange_l", 129)
+        self.saturation_orange_h = rospy.get_param("~detect/cone/orange/saturation_orange_h", 255)
+        self.lightness_orange_l = rospy.get_param("~detect/cone/orange/lightness_orange_l", 221)
+        self.lightness_orange_h = rospy.get_param("~detect/cone/orange/lightness_orange_h", 255)
+
+        self.is_calibration_mode = rospy.get_param("~is_detection_calibration_mode", False)
+        if self.is_calibration_mode == True:
+            srv_detect_lane = Server(DetectConeParamsConfig, self.cbGetDetectConeParam)
+
+        self.sub_image_type = "compressed"          # "compressed" / "raw"
+        self.pub_image_type = "compressed"          # "compressed" / "raw"
+
+        self.counter = 1
+        
+        if self.sub_image_type == "compressed":
+            # subscribes compressed image
+            self.sub_image_original = rospy.Subscriber('/detect/image_input/compressed', CompressedImage, self.cbGetImage, queue_size = 1)
+        elif self.sub_image_type == "raw":
+            # subscribes raw image
+            self.sub_image_original = rospy.Subscriber('/detect/image_input', Image, self.cbGetImage, queue_size = 1)
+ 
+        if self.pub_image_type == "compressed":
+            # publishes compensated image in compressed type 
+            self.pub_image_traffic_light = rospy.Publisher('/detect/image_output/compressed', CompressedImage, queue_size = 1)
+        elif self.pub_image_type == "raw":
+            # publishes compensated image in raw type
+            self.pub_image_traffic_light = rospy.Publisher('/detect/image_output', Image, queue_size = 1)
+
+        if self.is_calibration_mode == True:
+            if self.pub_image_type == "compressed":
+                # publishes light image in compressed type 
+                self.pub_image_orange_light = rospy.Publisher('/detect/image_output_sub1/compressed', CompressedImage, queue_size = 1)
+            elif self.pub_image_type == "raw":
+                # publishes light image in raw type
+                self.pub_image_orange_light = rospy.Publisher('/detect/image_output_sub1', Image, queue_size = 1)
+
+        self.pub_control_mode = rospy.Publisher('/control/mode', UInt8, queue_size=1)
+
+        self.CurrentMode = 1 # idle is 0, 1 is detecting 
+    
+        self.cvBridge = CvBridge()
+        self.cv_image = None
+
+        self.is_image_available = False
+        self.is_traffic_light_finished = False
+
+        self.green_count = 0
+        self.yellow_count = 0
+        self.red_count = 0
+        self.stop_count = 0
+        self.off_traffic = False
+        rospy.sleep(1)
+
+        loop_rate = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            if self.is_image_available == True:
+                if self.is_traffic_light_finished == False:
+                    self.fnFindCone()
+
+            loop_rate.sleep()
+
+    def cbGetDetectConeParam(self, config, level):
+        rospy.loginfo("[Detect Cone] Detect Cone Calibration Parameter reconfigured to")
+        rospy.loginfo("hue_orange_l : %d", config.hue_orange_l)
+        rospy.loginfo("hue_orange_h : %d", config.hue_orange_h)
+        rospy.loginfo("saturation_orange_l : %d", config.saturation_orange_l)
+        rospy.loginfo("saturation_orange_h : %d", config.saturation_orange_h)
+        rospy.loginfo("lightness_orange_l : %d", config.lightness_orange_l)
+        rospy.loginfo("lightness_orange_h : %d", config.lightness_orange_h)
+
+        self.hue_orange_l = 0
+        self.hue_orange_h = 43
+        self.saturation_orange_l = 129
+        self.saturation_orange_h = 255
+        self.lightness_orange_l = 221   
+        self.lightness_orange_h = 255
+
+        return config
+
+    def cbGetImage(self, image_msg):
+        # drop the frame to 1/5 (6fps) because of the processing speed. This is up to your computer's operating power.
+        if self.counter % 3 != 0:
+            self.counter += 1
+            return
+        else:
+            self.counter = 1
+
+        if self.sub_image_type == "compressed":
+            np_arr = np.frombuffer(image_msg.data, np.uint8)
+            self.cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        else:
+            self.cv_image = self.cvBridge.imgmsg_to_cv2(image_msg, "bgr8")
+        
+        self.is_image_available = True
+
+    def fnFindCone(self):
+        cv_image_mask = self.fnMaskCone()
+        cv_image_mask = cv2.GaussianBlur(cv_image_mask,(5,5),0)
+
+        status1 = self.fnFindCircleOfCone(cv_image_mask)
+
+        if self.pub_image_type == "compressed":
+            # publishes traffic light image in compressed type
+            self.pub_image_traffic_light.publish(self.cvBridge.cv2_to_compressed_imgmsg(self.cv_image, "jpg"))
+
+        elif self.pub_image_type == "raw":
+            # publishes traffic light image in raw type
+            self.pub_image_traffic_light.publish(self.cvBridge.cv2_to_imgmsg(self.cv_image, "bgr8"))
+
+    def fnMaskCone(self):
+        image = np.copy(self.cv_image)
+
+        # Convert BGR to HSV
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+        Hue_l = self.hue_orange_l
+        Hue_h = self.hue_orange_h
+        Saturation_l = self.saturation_orange_l
+        Saturation_h = self.saturation_orange_h
+        Lightness_l = self.lightness_orange_l
+        Lightness_h = self.lightness_orange_h
+
+        # define range of red color in HSV
+        
+        lower_orange = np.array([Hue_l, Saturation_l, Lightness_l])
+        upper_orange = np.array([Hue_h, Saturation_h, Lightness_h])
+
+        # Threshold the HSV image to get only red colors
+        mask = cv2.inRange(hsv, lower_orange, upper_orange)
+
+        # Bitwise-AND mask and original image
+        res = cv2.bitwise_and(image, image, mask = mask)
+
+        if self.is_calibration_mode == True:
+            if self.pub_image_type == "compressed":
+                # publishes red light filtered image in compressed type
+                self.pub_image_orange_light.publish(self.cvBridge.cv2_to_compressed_imgmsg(mask, "jpg"))
+
+            elif self.pub_image_type == "raw":
+                # publishes red light filtered image in raw type
+                self.pub_image_orange_light.publish(self.cvBridge.cv2_to_imgmsg(mask, "mono8"))
+
+        mask = cv2.bitwise_not(mask)
+
+        return mask
+
+    def fnFindCircleOfCone(self, mask):
+        status = 0
+
+        params=cv2.SimpleBlobDetector_Params()
+        # Change thresholds
+        params.minThreshold = 0
+        params.maxThreshold = 255
+
+        # Filter by Area.
+        params.filterByArea = True
+        params.minArea = 200
+        params.maxArea = 600
+
+        # Filter by Circularity
+        params.filterByCircularity = False
+        params.minCircularity = 0
+
+        # Filter by Convexity
+        params.filterByConvexity = False
+        params.minConvexity = 0
+
+        det=cv2.SimpleBlobDetector_create(params)
+        keypts=det.detect(mask)
+        frame=cv2.drawKeypoints(self.cv_image,keypts,np.array([]),(0,255,255),cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+        # if detected a cone then publish the mode to stop
+        if len(keypts) > 0:
+            rospy.loginfo("Detected a cone" + str(len(keypts)))
+            if self.CurrentMode != 0:
+                self.pub_control_mode.publish(0)
+                self.CurrentMode = 0
+                status = 1
+        else:
+            if self.CurrentMode != 1:
+                self.pub_control_mode.publish(1)
+                self.CurrentMode = 1
+        return status
+
+    def cbTrafficLightFinished(self, traffic_light_finished_msg):
+        self.is_traffic_light_finished = True
+
+    def main(self):
+        rospy.spin()
+
+if __name__ == '__main__':
+    rospy.init_node('detect_cone')
+    node = DetectCone()
+    node.main()
