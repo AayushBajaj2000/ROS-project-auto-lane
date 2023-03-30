@@ -1,46 +1,34 @@
 # TurtleBot3 AutoRace 2020 metapackage 
 
-[![noetic-devel Status](https://github.com/ROBOTIS-GIT/turtlebot3_autorace_2020/workflows/Noetic/badge.svg)](https://github.com/ROBOTIS-GIT/turtlebot3_autorace_2020/tree/noetic-devel)
+The gazebo launch file, I launch the gazebo with the world and also launch the extrinsic camera and intrinsic camera with this file so i dont have to do it in seperate terminals.
 
-## Simulation (ROS 1 Noetic)
-- Youtube playlist [TurtleBot3 AutoRace 2020 for Noetic](https://www.youtube.com/watch?v=d2cP8OTMbwI&list=PLRG6WP3c31_WsNjwmYID2ulX5g4WcjKbI)
+'''
+<launch>
+  <env name="GAZEBO_RESOURCE_PATH" value="$(find turtlebot3_gazebo)/models/autorace/ground_picture" />
 
-## ROBOTIS e-Manual for TurtleBot3
-- [TurtleBot3 Autonomous Driving](https://emanual.robotis.com/docs/en/platform/turtlebot3/autonomous_driving/#autonomous-driving)
+  <arg name="x_pos" default="1.589"/>
+  <arg name="y_pos" default="-0.4832"/>
+  <arg name="z_pos" default="0.175280"/>
+  <arg name="yaw_angle" default="1.562509" />  
 
-## Wiki for turtlebot3_autorace Packages
-- http://wiki.ros.org/turtlebot3_autorace (metapackage)
-- http://wiki.ros.org/turtlebot3_autorace_camera
-- http://wiki.ros.org/turtlebot3_autorace_core
-- http://wiki.ros.org/turtlebot3_autorace_detect
-- http://wiki.ros.org/turtlebot3_autorace_driving
-- http://wiki.ros.org/turtlebot3_autorace_msgs
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/Phase_c_lights.world" />
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>  
 
-## Open Source related to TurtleBot3
-- [turtlebot3](https://github.com/ROBOTIS-GIT/turtlebot3)
-- [turtlebot3_msgs](https://github.com/ROBOTIS-GIT/turtlebot3_msgs)
-- [turtlebot3_simulations](https://github.com/ROBOTIS-GIT/turtlebot3_simulations)
-- [turtlebot3_applications_msgs](https://github.com/ROBOTIS-GIT/turtlebot3_applications_msgs)
-- [turtlebot3_applications](https://github.com/ROBOTIS-GIT/turtlebot3_applications)
-- [turtlebot3_autorace](https://github.com/ROBOTIS-GIT/turtlebot3_autorace)
-- [turtlebot3_deliver](https://github.com/ROBOTIS-GIT/turtlebot3_deliver)
-- [hls_lfcd_lds_driver](https://github.com/ROBOTIS-GIT/hls_lfcd_lds_driver)
-- [open_manipulator_msgs](https://github.com/ROBOTIS-GIT/open_manipulator_msgs)
-- [open_manipulator](https://github.com/ROBOTIS-GIT/open_manipulator)
-- [open_manipulator_simulations](https://github.com/ROBOTIS-GIT/open_manipulator_simulations)
-- [open_manipulator_perceptions](https://github.com/ROBOTIS-GIT/open_manipulator_perceptions)
-- [turtlebot3_manipulation](https://github.com/ROBOTIS-GIT/turtlebot3_manipulation)
-- [turtlebot3_manipulation_simulations](https://github.com/ROBOTIS-GIT/turtlebot3_manipulation_simulations)
-- [dynamixel_sdk](https://github.com/ROBOTIS-GIT/DynamixelSDK)
-- [dynamixel_workbench](https://github.com/ROBOTIS-GIT/dynamixel-workbench)
-- [OpenCR-Hardware](https://github.com/ROBOTIS-GIT/OpenCR-Hardware)
-- [OpenCR](https://github.com/ROBOTIS-GIT/OpenCR)
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_burger_for_autorace_2020.urdf.xacro" />
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" args="-urdf -model autorace -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -Y $(arg yaw_angle) -param robot_description" />
+   
+  <include file="$(find turtlebot3_autorace_camera)/launch/extrinsic_camera_calibration.launch">
+  </include>  
+  <include file="$(find turtlebot3_autorace_camera)/launch/intrinsic_camera_calibration.launch">
+  </include>
+  <!-- <include file="$(find turtlebot3_autorace_detect)/launch/detect_lane.launch">
+  </include> -->
+</launch>
+'''
 
-## Documents and Videos related to TurtleBot3
-- [ROBOTIS e-Manual for TurtleBot3](http://turtlebot3.robotis.com/)
-- [ROBOTIS e-Manual for OpenManipulator](http://emanual.robotis.com/docs/en/platform/openmanipulator/)
-- [ROBOTIS e-Manual for Dynamixel SDK](http://emanual.robotis.com/docs/en/software/dynamixel/dynamixel_sdk/overview/)
-- [ROBOTIS e-Manual for Dynamixel Workbench](http://emanual.robotis.com/docs/en/software/dynamixel/dynamixel_workbench/)
-- [Website for TurtleBot Series](http://www.turtlebot.com/)
-- [e-Book for TurtleBot3](https://community.robotsource.org/t/download-the-ros-robot-programming-book-for-free/51/)
-- [Videos for TurtleBot3](https://www.youtube.com/playlist?list=PLRG6WP3c31_XI3wlvHlx2Mp8BYqgqDURU)
