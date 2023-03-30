@@ -35,7 +35,7 @@ The gazebo launch file, I launch the gazebo with the world and also launch the e
 
 # How to run the project:
 - The main launch file is the traffic_cone.launch inside the turtlebot3_autorace_detect launch files.
-_ This launch file will run 2 things, one is the detect_cone node, the other is the cone_decider node which handles the mode stuff. The detect_cone will detect the cone and publish on a topic control/mode which is subbed to by the cone_decider node.
+- This launch file will run 2 things, one is the detect_cone node, the other is the cone_decider node which handles the mode stuff. The detect_cone will detect the cone and publish on a topic control/mode which is subbed to by the cone_decider node.
 - The cone decider node has the logic for the lane change and all the stuff.
 
 # Parameters that you will need to change:
@@ -43,6 +43,7 @@ _ This launch file will run 2 things, one is the detect_cone node, the other is 
 - Cone detection params, cone.yaml inside param/cone/ in the same package, if this is not working i did a temporary change in the cbGetDetectConeParams function you can put your parameters here for now after calibrating the cone detection. The image is called /image/cone/compressed in rqt. Also if you detect cones sometimes when there are none you can change the filters in the fnFindCircleOfCone function.
 
 Let me know if you have any questions.
-- 
+
+Also make sure to copy the CMakeList for the turtlebot3_autorace_detect then do catkin_make in catkin_ws.
 
 
