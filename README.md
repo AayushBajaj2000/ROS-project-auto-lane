@@ -1,8 +1,8 @@
-# TurtleBot3 AutoRace 2020 metapackage 
+# TurtleBot3 Project 
 
 The gazebo launch file, I launch the gazebo with the world and also launch the extrinsic camera and intrinsic camera with this file so i dont have to do it in seperate terminals.
 
-'''
+```
 <launch>
   <env name="GAZEBO_RESOURCE_PATH" value="$(find turtlebot3_gazebo)/models/autorace/ground_picture" />
 
@@ -27,8 +27,8 @@ The gazebo launch file, I launch the gazebo with the world and also launch the e
   </include>  
   <include file="$(find turtlebot3_autorace_camera)/launch/intrinsic_camera_calibration.launch">
   </include>
-  <!-- <include file="$(find turtlebot3_autorace_detect)/launch/detect_lane.launch">
-  </include> -->
 </launch>
-'''
+```
 
+# How to run the project:
+- The main launch file is the 
