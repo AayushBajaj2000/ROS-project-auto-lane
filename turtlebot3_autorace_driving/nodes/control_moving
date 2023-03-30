@@ -281,6 +281,9 @@ class ControlMoving():
         twist.angular.z = 0
         self.pub_cmd_vel.publish(twist)
 
+        # Wait for the command to finish 
+        
+
         return err_pos
 
     def fnStop(self):

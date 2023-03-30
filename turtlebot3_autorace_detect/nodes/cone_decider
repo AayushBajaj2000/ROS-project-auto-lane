@@ -1,24 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-################################################################################
-# Copyright 2018 ROBOTIS CO., LTD.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-################################################################################
-
-# Author: Leon Jung, Gilbert, Ashe Kim
-
 import rospy, roslaunch, tf
 import os, math, time
 from enum import Enum
@@ -35,24 +17,28 @@ class ConeController():
         self.pub_cmd_vel = rospy.Publisher('/cmd_vel', Twist, queue_size = 1)
         self.sub_odom = rospy.Subscriber('/odom', Odometry, self.cbOdom, queue_size=1)
 
-        self.Launcher = Enum('Launcher', 'launch_detect_lane launch_driving_lane')  
+        # launch file variables
         self.launch_driving_lane_launched = False
         self.launch_detect_lane_launched = False
-        self.current_mode = 1 # 0: cone detected, 1: no cone detected
+        
+        # mode variables, 0: cone detected ( Stop change lane and run the robot ), 1: no cone detected
+        self.current_mode = 1 
+
         self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
         self.is_triggered = False
 
+        # Store the current position of the robot
         self.current_pos_x = 0.0
         self.current_pos_y = 0.0
 
-        #moving flags
+        # Moving flags
         self.is_step_start = False
         self.is_step_left = False
         self.is_step_right = False
         self.is_step_forward = False
         self.is_step_backward = False
         
-        #moving internal valiables
+        # Moving internal valiables
         self.theta = 0.0
         self.current_theta = 0.0
         self.last_current_theta = 0.0
@@ -63,16 +49,19 @@ class ConeController():
             self.fnControlNode()
             loop_rate.sleep()
 
+    # Receiving the current mode message from the detect cone node
     def cbReceiveMode(self, mode_msg):
-        rospy.loginfo("=====>>>>ReceiveMode %d", mode_msg.data)
+        rospy.loginfo("ReceiveMode %d", mode_msg.data)
         self.current_mode = mode_msg.data
 
+    # Control which file to launch based on the cone node's current mode
     def fnControlNode(self):
         if self.current_mode == 1:
             self.fnLaunch(True)
         elif self.current_mode == 0:
             self.fnLaunch(False)
 
+    # Launch the lane detection and lane following nodes
     def fnLaunch(self,is_start):          
         if is_start == True:
             if self.launch_driving_lane_launched == False:
@@ -99,16 +88,16 @@ class ConeController():
                 self.launch_driving_lane_launched = False
                 self.launch_driving_lane.shutdown()
                 
-                # Perform the sequence here to change the lanes
+                # Perform the sequence here to change the lanes, all these use a pid to turn and move forward
                 # Turn left 90 degrees
-                # move forward 1 meter
+                # move forward 0.35 meters
                 # Turn right 90 degrees
                 self.turn_left(90)
                 self.go_forward(0.35)
                 self.turn_right(90)
 
-                # Here run the lane following but this time run the detect_lane_left node
-                # A while loop for 27 seconds, this includes the time to start the node
+                # Here run the lane following but this time run the detect_lane_left node, on the launch file detect_lane_left.launch.
+                # A while loop for 27 seconds ( Try tweaking this time ), this includes the time to start the node
                 start_time = time.time()
                 current_time = time.time()
                 while current_time - start_time < 27:
@@ -129,13 +118,14 @@ class ConeController():
                         pass
 
                     current_time = time.time()
-                
+
                 # Stop the lane following
                 self.launch_detect_lane_launched = False
                 self.launch_detect_lane.shutdown()
                 self.launch_driving_lane_launched = False
                 self.launch_driving_lane.shutdown()
 
+                # Change back to the original lane at this point, and continue doing what we were doing before
                 self.turn_right(90)
                 self.go_forward(0.35)
                 self.turn_left(90)
@@ -169,11 +159,9 @@ class ConeController():
         rospy.loginfo("turn_right function is called")
         self.lastError = 0.0
         self.desired_theta = self.current_theta - math.radians(msg)
-        self.is_step_start = True
 
         while True:
             error = self.fnTurn()
-
             if math.fabs(error) < 0.05:
                 rospy.loginfo("turn_right function is finished")
                 self.step_completed()
@@ -184,12 +172,9 @@ class ConeController():
         self.lastErorr = 0.0
         self.start_pos_x = self.current_pos_x
         self.start_pos_y = self.current_pos_y
-        rospy.loginfo("start_pos_x :" + str(self.start_pos_x) + " start_pos_y :" + str(self.start_pos_y))
-        self.is_step_start = True
 
         while True:
             error = self.fnStraight(msg)
-
             if math.fabs(error) < 0.005:
                 rospy.loginfo("go_forward function is finished")
                 self.step_completed()
@@ -199,17 +184,16 @@ class ConeController():
 
     def go_backward(self, msg):
         rospy.loginfo("go_backward function is called")
-        if self.is_step_start == False:
-            self.lastError = 0.0
-            self.start_pos_x = self.current_pos_x
-            self.start_pos_y = self.current_pos_y
-            self.is_step_start = True
+        self.lastError = 0.0
+        self.start_pos_x = self.current_pos_x
+        self.start_pos_y = self.current_pos_y
         
-        error = self.fnBackStraight(msg)
-
-        if math.fabs(error) < 0.005:
-            rospy.loginfo("go_backward function is finished")
-            self.step_completed()
+        while True:
+            error = self.fnBackStraight(msg)
+            if math.fabs(error) < 0.005:
+                rospy.loginfo("go_backward function is finished")
+                self.step_completed()
+                break
 
     def fnTurn(self):
         err_theta = self.current_theta - self.desired_theta
@@ -263,7 +247,6 @@ class ConeController():
 
 
     def fnBackStraight(self, desired_dist):   
-
         err_pos = math.sqrt((self.current_pos_x - self.start_pos_x) ** 2 + (self.current_pos_y - self.start_pos_y) ** 2) - desired_dist
     
         # rospy.loginfo("error_pos = %f", err_pos)
@@ -299,6 +282,7 @@ class ConeController():
         twist.angular.z = 0
         self.pub_cmd_vel.publish(twist)
 
+    # Callback for getting the current position of the robot
     def cbOdom(self, odom_msg):
         quaternion = (odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z, odom_msg.pose.pose.orientation.w)
         self.current_theta = self.euler_from_quaternion(quaternion)
@@ -318,7 +302,6 @@ class ConeController():
     def euler_from_quaternion(self, quaternion):
         theta = tf.transformations.euler_from_quaternion(quaternion)[2]
         return theta
-
 
     def main(self):
         rospy.spin()
