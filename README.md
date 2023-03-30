@@ -41,6 +41,7 @@ The gazebo launch file, I launch the gazebo with the world and also launch the e
 # Parameters that you will need to change:
 - Lane detection params, lane.yaml inside param/lane/ in turtlebot3_autorace_detect.
 - Cone detection params, cone.yaml inside param/cone/ in the same package, if this is not working i did a temporary change in the cbGetDetectConeParams function you can put your parameters here for now after calibrating the cone detection. The image is called /image/cone/compressed in rqt. Also if you detect cones sometimes when there are none you can change the filters in the fnFindCircleOfCone function.
+- Probably the turns and the forward distance when changing lanes in cone_decider.
 
 Let me know if you have any questions.
 
